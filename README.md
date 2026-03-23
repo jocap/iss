@@ -1,0 +1,29 @@
+# iss — Instant Space Switcher
+
+Eliminates the macOS sliding animation when 3-finger swiping between spaces.
+
+## How it works
+
+A CGEventTap intercepts trackpad dock-swipe gestures before the Dock sees them, suppresses the originals, and posts synthetic Begin+End gesture events with high velocity (±400). The Dock treats these as instantaneous swipes and switches spaces with no animation.
+
+**No SIP disable required.** CGEventTap and CGEventPost are public, supported APIs — the same mechanism macOS uses for Accessibility features. No code injection, no DYLD tricks, no system file modification. The only undocumented parts are the CGEvent field indices (55, 110, 132, etc.) used to read/write gesture metadata, which are just integer constants passed to public functions. SIP has nothing to protect here.
+
+Vertical swipes (Mission Control, App Exposé) are left untouched.
+
+## Compatibility
+
+macOS 10.11 El Capitan through macOS 15 Sequoia. The private event field indices and dock-swipe HID type have been stable since 3-finger swipe was introduced.
+
+## Install
+
+```
+make install   # builds, installs to /usr/local/bin, starts launch agent
+```
+
+Runs automatically at login via launchd. Grant Accessibility permission when prompted.
+
+## Uninstall
+
+```
+make uninstall
+```
