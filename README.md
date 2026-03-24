@@ -17,7 +17,9 @@ macOS 10.11 El Capitan through macOS 15 Sequoia. The private event field indices
 ## Install
 
 ```
-make install   # builds, installs to /usr/local/bin, starts launch agent
+# builds, installs to ~/.local/bin/iss, starts launch agent
+# use sudo make install PREFIX=/usr/local if you want but it's not necessary
+make install
 ```
 
 Runs automatically at login via launchd. Grant Accessibility permission when prompted.
