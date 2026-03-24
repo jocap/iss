@@ -12,7 +12,8 @@ Vertical swipes (Mission Control, App Exposé) are left untouched.
 
 ## Compatibility
 
-macOS 10.11 El Capitan through macOS 15 Sequoia. The private event field indices and dock-swipe HID type have been stable since 3-finger swipe was introduced.
+Should work on all macOS since 10.11 El Capitan.
+The private event field indices and dock-swipe HID type have been stable since 3-finger swipe was introduced.
 
 ## Install
 
