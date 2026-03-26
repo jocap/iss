@@ -1,6 +1,6 @@
 # iss — Instant Space Switcher
 
-Eliminates the macOS sliding animation when 3-finger swiping between spaces.
+Eliminates the macOS sliding animation when switching between spaces with 3-finger swipes & ctrl+left/right arrow.
 
 ## How it works
 
