@@ -18,12 +18,23 @@
 // Does not require disabling SIP.
 
 #include <ApplicationServices/ApplicationServices.h>
+#include <CoreFoundation/CFArray.h>
+#include <CoreFoundation/CFBase.h>
+#include <CoreFoundation/CFCGTypes.h>
+#include <CoreFoundation/CFDictionary.h>
+#include <CoreFoundation/CFNumber.h>
+#include <CoreFoundation/CFString.h>
+#include <CoreFoundation/CFUUID.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <CoreGraphics/CGDirectDisplay.h>
+#include <CoreGraphics/CGError.h>
 #include <CoreGraphics/CGEvent.h>
 #include <CoreGraphics/CGEventTypes.h>
+#include <CoreGraphics/CGGeometry.h>
 #include <float.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 
 // --- Undocumented CGS/IOKit constants ----------------------------------------
@@ -46,9 +57,21 @@ enum { kIOHIDEventTypeDockSwipe = 23 };
 enum { kCGGestureMotionHorizontal = 1 };
 enum { kGestureBegan = 1, kGestureChanged = 2, kGestureEnded = 4, kGestureCancelled = 8 };
 
+typedef enum {
+	CGSSpaceIncludesCurrent = 1 << 0,
+	CGSSpaceIncludesOthers	= 1 << 1,
+	CGSSpaceIncludesUser	= 1 << 2,
+	CGSSpaceVisible			= 1 << 16,
+
+	kCGSAllSpacesMask = CGSSpaceIncludesUser | CGSSpaceIncludesOthers | CGSSpaceIncludesCurrent,
+	KCGSAllVisibleSpacesMask = CGSSpaceVisible | kCGSAllSpacesMask,
+} CGSSpaceMask;
+
 extern int CGSMainConnectionID(void);
 extern uint64_t CGSGetActiveSpace(int cid);
 extern CFArrayRef CGSCopyManagedDisplaySpaces(int cid);
+extern CFArrayRef CGSCopySpaces(int cid, CGSSpaceMask mask);
+extern CGError CGSGetCurrentCursorLocation(int cid, CGPoint* point);
 
 // --- State -------------------------------------------------------------------
 
@@ -90,23 +113,38 @@ static bool post_pair(CGEventRef dock) {
 // the active space's position within it.
 static bool can_switch(bool right) {
     int cid = CGSMainConnectionID();
-    uint64_t active = CGSGetActiveSpace(cid);
     CFArrayRef displays = CGSCopyManagedDisplaySpaces(cid);
     if (!displays) return true;
 
+    CFArrayRef visible_spaces = CGSCopySpaces(cid, KCGSAllVisibleSpacesMask);
+    
+    CGPoint cursor_location;
+    CGSGetCurrentCursorLocation(cid, &cursor_location);
+
+    CGDirectDisplayID active_display;
+    CGGetDisplaysWithPoint(cursor_location, 1, &active_display, NULL);
+    
     bool can = true;
     for (CFIndex i = 0; i < CFArrayGetCount(displays); i++) {
         CFDictionaryRef display = CFArrayGetValueAtIndex(displays, i);
+
+        CFStringRef display_id_str = CFDictionaryGetValue(display, CFSTR("Display Identifier"));
+        CFUUIDRef display_uuid = CFUUIDCreateFromString(kCFAllocatorDefault, display_id_str);
+        uint32_t current_display = CGDisplayGetDisplayIDFromUUID(display_uuid);
+        CFRelease(display_uuid);
+
+        if (current_display != (uint32_t)active_display) continue;
+        
         CFArrayRef spaces = CFDictionaryGetValue(display, CFSTR("Spaces"));
         if (!spaces) continue;
         CFIndex count = CFArrayGetCount(spaces);
+        CFRange range = CFRangeMake(0, CFArrayGetCount(visible_spaces));
+        
         for (CFIndex j = 0; j < count; j++) {
             CFDictionaryRef space = CFArrayGetValueAtIndex(spaces, j);
             CFNumberRef sid = CFDictionaryGetValue(space, CFSTR("ManagedSpaceID"));
             if (!sid) continue;
-            int64_t val;
-            CFNumberGetValue(sid, kCFNumberSInt64Type, &val);
-            if ((uint64_t)val == active) {
+            if (CFArrayContainsValue(visible_spaces, range, sid)) {
                 if (right && j == count - 1) can = false;
                 if (!right && j == 0) can = false;
                 goto done;
