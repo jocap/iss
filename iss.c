@@ -19,6 +19,8 @@
 
 #include <ApplicationServices/ApplicationServices.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <CoreGraphics/CGEvent.h>
+#include <CoreGraphics/CGEventTypes.h>
 #include <float.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -157,6 +159,19 @@ static CGEventRef cb(CGEventTapProxy proxy, CGEventType type, CGEventRef ev, voi
         return ev;
     }
 
+    int keycode = (int)CGEventGetIntegerValueField(ev, kCGKeyboardEventKeycode);
+    int flags = (int)CGEventGetFlags(ev);
+    
+    
+    // Translate Ctrl+Left Arrow and Ctrl+Right Arrow into dock swipes
+    if (et == kCGEventKeyDown
+        && flags & kCGEventFlagMaskControl
+        && (keycode == 123 || keycode == 124)) {
+        
+        post_switch(keycode == 124);        
+        return NULL;
+    }
+
     // Only intercept horizontal dock swipes (not Mission Control, App Exposé, etc.)
     if (et == kCGSEventDockControl
         && (int)CGEventGetIntegerValueField(ev, kCGEventGestureHIDType) == kIOHIDEventTypeDockSwipe
@@ -207,7 +222,7 @@ int main(void) {
     // Listen for gesture + dock control events
     tap = CGEventTapCreate(kCGSessionEventTap, kCGHeadInsertEventTap,
         kCGEventTapOptionDefault,
-        (1ULL << kCGSEventGesture) | (1ULL << kCGSEventDockControl), cb, NULL);
+        (1ULL << kCGSEventGesture) | (1ULL << kCGSEventDockControl) | (1ULL << kCGEventKeyDown), cb, NULL);
     if (!tap) { fprintf(stderr, "Failed to create event tap.\n"); return 1; }
 
     CFRunLoopSourceRef src = CFMachPortCreateRunLoopSource(NULL, tap, 0);
