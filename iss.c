@@ -204,6 +204,9 @@ static CGEventRef cb(CGEventTapProxy proxy, CGEventType type, CGEventRef ev, voi
     // Translate Ctrl+Left Arrow and Ctrl+Right Arrow into dock swipes
     if (et == kCGEventKeyDown
         && flags & kCGEventFlagMaskControl
+        && !(flags & kCGEventFlagMaskShift)
+        && !(flags & kCGEventFlagMaskAlternate)
+        && !(flags & kCGEventFlagMaskCommand)
         && (keycode == 123 || keycode == 124)) {
         
         post_switch(keycode == 124);        
